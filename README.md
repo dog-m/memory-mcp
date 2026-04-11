@@ -39,4 +39,4 @@ Run the server via CLI:
 
 - **Concurrency**: Uses `sync.RWMutex` to ensure thread safety when multiple agents access the server.
 - **Persistence**: Memories are stored in `memories.json` within the data directory.
-- **Protocol**: Uses MCP over Stdio transport.
+- **Protocol**: Uses MCP over HTTP-streaming transport.
