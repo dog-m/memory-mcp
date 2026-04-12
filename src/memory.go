@@ -23,19 +23,19 @@ type Config struct {
 	MaxMemories int `json:"max_memories"`
 }
 
-type Store struct {
+type MemoryStorage struct {
 	mutex       sync.RWMutex
 	memories    map[int64]MemoryRecord
 	dataPath    string
 	maxMemories int
 }
 
-func NewStore(dataPath string, maxMemories int) (*Store, error) {
+func NewStore(dataPath string, maxMemories int) (*MemoryStorage, error) {
 	if err := os.MkdirAll(dataPath, 0755); err != nil {
 		return nil, err
 	}
 
-	store := &Store{
+	store := &MemoryStorage{
 		memories:    make(map[int64]MemoryRecord),
 		dataPath:    dataPath,
 		maxMemories: maxMemories,
@@ -48,7 +48,7 @@ func NewStore(dataPath string, maxMemories int) (*Store, error) {
 	return store, nil
 }
 
-func (s *Store) load() error {
+func (s *MemoryStorage) load() error {
 	filePath := filepath.Join(s.dataPath, "memories.json")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *Store) load() error {
 	return nil
 }
 
-func (s *Store) save() error {
+func (s *MemoryStorage) save() error {
 	filePath := filepath.Join(s.dataPath, "memories.json")
 	data, err := json.MarshalIndent(s.memories, "", "  ")
 	if err != nil {
@@ -74,7 +74,7 @@ func (s *Store) save() error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
-func (s *Store) Remember(text string) (int64, error) {
+func (s *MemoryStorage) NewRecord(text string) (int64, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -103,7 +103,7 @@ func (s *Store) Remember(text string) (int64, error) {
 	return id, nil
 }
 
-func (s *Store) List() []MemoryRecord {
+func (s *MemoryStorage) GetAllRecords() []MemoryRecord {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -114,7 +114,7 @@ func (s *Store) List() []MemoryRecord {
 	return list
 }
 
-func (s *Store) Forget(id int64) error {
+func (s *MemoryStorage) DeleteRecord(id int64) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -131,7 +131,7 @@ func (s *Store) Forget(id int64) error {
 	return nil
 }
 
-func (s *Store) Update(id int64, text string) error {
+func (s *MemoryStorage) UpdateRecord(id int64, text string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
