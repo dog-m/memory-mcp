@@ -26,28 +26,31 @@ func GetRememberMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*Rememb
 		any,
 		error,
 	) {
-		// retry logic with jitter
-		var id RecordID
-		var err error
-		for i := range WRITE_ATTEMPTS {
-			id, err = storage.NewRecord(params.Info)
+		var result string
+		if len(storage.memories) >= storage.maxMemories {
+			result = fmt.Sprintf("Memory limit reached: %d/%d", storage.maxMemories, storage.maxMemories)
+		} else {
+			// retry logic with jitter
+			var id RecordID
+			var err error
+			for i := range WRITE_ATTEMPTS {
+				if id, err = storage.NewRecord(params.Info); err == nil {
+					break
+				}
+
+				time.Sleep(time.Duration(100*(i+1)) * time.Millisecond)
+			}
+
 			if err == nil {
-				break
+				result = fmt.Sprintf("Memory recorded with ID: '%s'", id)
+			} else {
+				return nil, nil, fmt.Errorf("Failed to remember after retries: %w", err)
 			}
-			if err.Error() == "memory limit reached" {
-				return nil, nil, err
-			}
-
-			time.Sleep(time.Duration(100*(i+1)) * time.Millisecond)
-		}
-
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to remember after retries: %w", err)
 		}
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Memory recorded with ID: %d", id)},
+				&mcp.TextContent{Text: result},
 			},
 		}, nil, nil
 	}
@@ -102,7 +105,7 @@ func GetForgetMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*ForgetPa
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Memory %d forgotten", params.MemID)},
+				&mcp.TextContent{Text: fmt.Sprintf("Memory '%s' forgotten", params.MemID)},
 			},
 		}, nil, nil
 	}
@@ -131,7 +134,7 @@ func GetUpdateMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*UpdateMe
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Memory '%d' updated", params.MemID)},
+				&mcp.TextContent{Text: fmt.Sprintf("Memory '%s' updated", params.MemID)},
 			},
 		}, nil, nil
 	}

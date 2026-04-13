@@ -1,8 +1,9 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,7 +13,9 @@ import (
 
 const TIMESTAMP_FORMAT = time.RFC1123
 
-type RecordID int64
+type RecordID string
+
+const RECORD_ID_NONE = RecordID("<invalid-id>")
 
 type MemoryRecord struct {
 	ID         RecordID `json:"id"`
@@ -89,33 +92,34 @@ func (s *MemoryStorage) save() error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
+func timestampToId(timestamp int64) RecordID {
+	buff := make([]byte, 64/8)
+	binary.LittleEndian.PutUint64(buff, uint64(timestamp))
+	value := base64.URLEncoding.EncodeToString(buff)
+	return RecordID(value[:11]) // truncating '=' padding at the end
+}
+
 func (s *MemoryStorage) NewRecord(text string) (RecordID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(s.memories) >= s.maxMemories {
-		return 0, errors.New("memory limit reached")
-	}
-
 	now := time.Now()
 	now_str := now.Format(TIMESTAMP_FORMAT)
-	id := RecordID(now.UnixMilli())
-	_ = fmt.Sprintf("%016X", id)
 
 	record := MemoryRecord{
-		ID:         id,
+		ID:         timestampToId(now.UnixMilli()),
 		CreatedAt:  now_str,
 		LastUpdate: now_str,
 		Text:       text,
 	}
 
-	s.memories[id] = record
+	s.memories[record.ID] = record
 
 	if err := s.save(); err != nil {
-		return 0, fmt.Errorf("failed to save memory: %w", err)
+		return RECORD_ID_NONE, fmt.Errorf("failed to save memory: %w", err)
 	}
 
-	return id, nil
+	return record.ID, nil
 }
 
 func (s *MemoryStorage) GetAllRecords() []MemoryRecord {
@@ -134,7 +138,7 @@ func (s *MemoryStorage) DeleteRecord(id RecordID) error {
 	defer s.mu.Unlock()
 
 	if _, ok := s.memories[id]; !ok {
-		return fmt.Errorf("memory record %d does not exist", id)
+		return fmt.Errorf("memory record '%s' does not exist", id)
 	}
 
 	delete(s.memories, id)
@@ -152,7 +156,7 @@ func (s *MemoryStorage) UpdateRecord(id RecordID, text string) error {
 
 	record, ok := s.memories[id]
 	if !ok {
-		return fmt.Errorf("memory record %d does not exist", id)
+		return fmt.Errorf("memory record '%s' does not exist", id)
 	}
 
 	record.Text = text
