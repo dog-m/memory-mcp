@@ -34,7 +34,7 @@ Run the server via CLI:
 - `-host`: Host address to listen on (default: `127.0.0.1`).
 - `-port`: Port number to listen on (default: `8000`).
 - `-data`: Path to the directory where memories will be stored (default: `user-data`).
-- `-max-memories`: Maximum allowed number of memories to store (default: `50`).
+- `-max-memories`: Maximum allowed number of memories to store (default: `50`, should be between `1` and `65536`).
 - `-prompts`: Path to a file containing tool names and matching descriptions (default: `""` - uses builtin ones).
 
 ## Implementation Details
