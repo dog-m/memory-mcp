@@ -11,6 +11,6 @@ OUTPUT_NAME="${BUILD_DIR}/memory-mcp"
 mkdir -p "${BUILD_DIR}"
 
 echo "Building memory-mcp for Linux arm64..."
-go build -o "${OUTPUT_NAME}" ./src
+go build -ldflags "-s -w" -o "${OUTPUT_NAME}" ./src
 
 echo "Build successful: ${OUTPUT_NAME}"

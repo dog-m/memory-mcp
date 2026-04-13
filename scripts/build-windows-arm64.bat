@@ -11,7 +11,7 @@ set OUTPUT_NAME=%BUILD_DIR%\memory-mcp.exe
 if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 
 echo Building memory-mcp for Windows arm64...
-go build -o %OUTPUT_NAME% ./src
+go build -ldflags "-s -w" -o %OUTPUT_NAME% ./src
 
 if %ERRORLEVEL% EQU 0 (
     echo Build successful: %OUTPUT_NAME%
