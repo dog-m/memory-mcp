@@ -13,16 +13,20 @@ import (
 
 var (
 	host            = flag.String("host", "127.0.0.1", "Host address to listen on")
-	port            = flag.Int("port", 8000, "Port number to listen on")
+	port            = flag.Uint("port", 8000, "Port number to listen on")
 	dataDir         = flag.String("data", "user-data", "Path to the directory where memories will be stored")
-	maxMemories     = flag.Int("max-memories", 50, "Maximum allowed number of memories to store")
+	maxMemories     = flag.Uint("max-memories", 50, "Maximum allowed number of memories to store")
 	toolDefinitions = flag.String("prompts", "", "Path to a file containing tool names and matching descriptions")
+	maxRecentEdits  = flag.Uint("max-recent-edits", 5, "Number of recent edits shown by the session info tool")
 )
 
 func main() {
 	flag.Parse()
 
-	if *maxMemories <= 0 || *maxMemories >= math.MaxUint16 {
+	if *port >= math.MaxUint16 {
+		log.Fatalf("Invalid port: %d", *port)
+	}
+	if *maxMemories >= math.MaxUint16 {
 		log.Fatalf("Invalid record limit: %d", *maxMemories)
 	}
 
@@ -33,7 +37,7 @@ func main() {
 	}
 
 	var storage *MemoryStorage
-	storage, err = StorageInit(dataDirResolved, *maxMemories)
+	storage, err = StorageInit(dataDirResolved, int(*maxMemories))
 	if err != nil {
 		log.Fatalf("Failed to initialize memory store: %v", err)
 	}
@@ -54,7 +58,7 @@ func main() {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        tools.ChatSessionStartup.Name,
 		Description: tools.ChatSessionStartup.Description,
-	}, GetChatSessionStartupHandler())
+	}, GetChatSessionStartupHandler(storage, int(*maxRecentEdits)))
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        tools.Remember.Name,

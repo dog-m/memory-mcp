@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -71,10 +73,12 @@ func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*EmptyPar
 		error,
 	) {
 		memories := storage.GetAllRecords()
+
 		jsonData, err := json.MarshalIndent(memories, "", "  ")
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to marshal memories: %w", err)
 		}
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: string(jsonData)},
@@ -140,21 +144,52 @@ func GetUpdateMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*UpdateMe
 	}
 }
 
-func GetChatSessionStartupHandler() mcp.ToolHandlerFor[*EmptyParams, any] {
+type ChatSessionStartupResponse struct {
+	CurrentTime       string `json:"current_time"`
+	MemoryUtilization string `json:"memory_utilization"`
+	EditSummary       struct {
+		Count   int             `json:"count"`
+		Details []*MemoryRecord `json:"details"`
+	} `json:"edit_summary"`
+}
+
+func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mcp.ToolHandlerFor[*EmptyParams, *ChatSessionStartupResponse] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
 		_ *EmptyParams,
 	) (
 		*mcp.CallToolResult,
-		any,
+		*ChatSessionStartupResponse,
 		error,
 	) {
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				// FIXME: not implemented!
-				&mcp.TextContent{Text: "Placeholder data. Water is wet."},
-			},
-		}, nil, nil
+		// order
+		mem_count := len(storage.memories)
+		memories_sorted := make([]*MemoryRecord, 0, mem_count)
+		for _, record := range storage.memories {
+			memories_sorted = append(memories_sorted, &record)
+		}
+		slices.SortStableFunc(memories_sorted, func(a, b *MemoryRecord) int {
+			return strings.Compare(b.LastUpdate, a.LastUpdate)
+		})
+
+		// truncate
+		if mem_count > maxRecentEdits {
+			memories_sorted = memories_sorted[:maxRecentEdits]
+		}
+
+		// assemble response
+		result := &ChatSessionStartupResponse{}
+		result.CurrentTime = fmt.Sprintf("%s (RFC1123)", time.Now().Format(time.RFC1123))
+		result.MemoryUtilization = fmt.Sprintf(
+			"%d/%d records used (%0.1f %%)",
+			mem_count,
+			storage.maxMemories,
+			100.0*float32(mem_count)/float32(storage.maxMemories),
+		)
+		result.EditSummary.Count = len(memories_sorted)
+		result.EditSummary.Details = memories_sorted
+
+		return nil, result, nil
 	}
 }

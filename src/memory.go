@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const TIMESTAMP_FORMAT = time.RFC1123
+const TIMESTAMP_FORMAT = "2006-01-02 15:04:05 MST"
 
 type RecordID string
 
