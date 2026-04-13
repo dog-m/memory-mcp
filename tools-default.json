@@ -1,0 +1,22 @@
+{
+    "startup": {
+        "name":        "get_session_context",
+        "description": "The foundational tool for establishing continuity. To ensure every interaction is personalized and context-aware, this tool should be the first step in any conversation, including greetings. It provides the immediate baseline of the user's current state and recent history."
+    },
+    "remember": {
+        "name":        "record_personal_detail",
+        "description": "Captures high-value personal information to build a precise user profile. Prioritize density and relevance. Focus on recording information that adds long-term utility, ensuring the memory remains a high-quality asset rather than a cluttered log."
+    },
+    "forget": {
+        "name":        "prune_memory",
+        "description": "Maintains memory integrity and high-fidelity. Use this to remove outdated, incorrect, or redundant information. A clean, accurate profile is more valuable than a large, noisy one; pruning is essential for keeping the user's context sharp and relevant."
+    },
+    "list": {
+        "name":        "query_user_archive",
+        "description": "A comprehensive search of the user's long-term history and preferences. If a user's inquiry implies a need for historical depth or specific past details not present in the immediate session context, this tool is the required next step to ensure accuracy and prevent providing uninformed responses."
+    },
+    "update": {
+        "name":        "update_memory",
+        "description": "Updates an existing memory record with new content. Keep the text short, dense, and precise for best results."
+    }
+}

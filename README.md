@@ -16,16 +16,17 @@ Ensure you have Go installed on your system.
 
 1. Clone the repository.
 2. Build the executable:
-   ```bash
-   go build -o build/memory-mcp.exe ./src
-   ```
+
+```bash
+go build -o build/memory-mcp.exe ./src
+```
 
 ## Usage
 
 Run the server via CLI:
 
 ```bash
-./build/memory-mcp.exe -data ./user-data -max-memories 25 -host 127.0.0.1 -port 1234
+./build/memory-mcp.exe -data ./user-data -max-memories 25 -host 127.0.0.1 -port 1234 -prompts "./tools-default.json"
 ```
 
 ### Arguments
@@ -34,6 +35,7 @@ Run the server via CLI:
 - `-port`: Port number to listen on (default: `8000`).
 - `-data`: Path to the directory where memories will be stored (default: `user-data`).
 - `-max-memories`: Maximum allowed number of memories to store (default: `50`).
+- `-prompts`: Path to a file containing tool names and matching descriptions (default: `""` - uses builtin ones).
 
 ## Implementation Details
 

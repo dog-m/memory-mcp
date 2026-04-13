@@ -16,7 +16,7 @@ type RememberParams struct {
 
 const WRITE_ATTEMPTS = 3
 
-func GetRememberMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*RememberParams, any] {
+func GetRememberMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*RememberParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
@@ -27,10 +27,10 @@ func GetRememberMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*
 		error,
 	) {
 		// retry logic with jitter
-		var id int64
+		var id RecordID
 		var err error
 		for i := range WRITE_ATTEMPTS {
-			id, err = memoryStorage.NewRecord(params.Info)
+			id, err = storage.NewRecord(params.Info)
 			if err == nil {
 				break
 			}
@@ -57,7 +57,7 @@ func GetRememberMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*
 type EmptyParams struct {
 }
 
-func GetListMemoriesHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*EmptyParams, any] {
+func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*EmptyParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
@@ -67,7 +67,7 @@ func GetListMemoriesHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*Em
 		any,
 		error,
 	) {
-		memories := memoryStorage.GetAllRecords()
+		memories := storage.GetAllRecords()
 		jsonData, err := json.MarshalIndent(memories, "", "  ")
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to marshal memories: %w", err)
@@ -82,10 +82,10 @@ func GetListMemoriesHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*Em
 
 // tool params
 type ForgetParams struct {
-	MemID int64 `json:"mem_id" jsonschema:"The ID of the memory record to delete."`
+	MemID RecordID `json:"mem_id" jsonschema:"The ID of the memory record to delete."`
 }
 
-func GetForgetMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*ForgetParams, any] {
+func GetForgetMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*ForgetParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
@@ -95,7 +95,7 @@ func GetForgetMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*Fo
 		any,
 		error,
 	) {
-		err := memoryStorage.DeleteRecord(params.MemID)
+		err := storage.DeleteRecord(params.MemID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -110,11 +110,11 @@ func GetForgetMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*Fo
 
 // tool params
 type UpdateMemoryParams struct {
-	MemID   int64  `json:"mem_id" jsonschema:"The ID of the memory record to update."`
-	NewInfo string `json:"new_info" jsonschema:"The new information to store in the record."`
+	MemID   RecordID `json:"mem_id" jsonschema:"The ID of the memory record to update."`
+	NewInfo string   `json:"new_info" jsonschema:"The new information to store in the record."`
 }
 
-func GetUpdateMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*UpdateMemoryParams, any] {
+func GetUpdateMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*UpdateMemoryParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
@@ -124,7 +124,7 @@ func GetUpdateMemoryHandler(memoryStorage *MemoryStorage) mcp.ToolHandlerFor[*Up
 		any,
 		error,
 	) {
-		err := memoryStorage.UpdateRecord(params.MemID, params.NewInfo)
+		err := storage.UpdateRecord(params.MemID, params.NewInfo)
 		if err != nil {
 			return nil, nil, err
 		}

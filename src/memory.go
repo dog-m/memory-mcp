@@ -12,11 +12,13 @@ import (
 
 const TIMESTAMP_FORMAT = time.RFC1123
 
+type RecordID int64
+
 type MemoryRecord struct {
-	ID         int64  `json:"id"`
-	CreatedAt  string `json:"created_at"`
-	LastUpdate string `json:"last_update"`
-	Text       string `json:"text"`
+	ID         RecordID `json:"id"`
+	CreatedAt  string   `json:"created_at"`
+	LastUpdate string   `json:"last_update"`
+	Text       string   `json:"text"`
 }
 
 type Config struct {
@@ -24,19 +26,19 @@ type Config struct {
 }
 
 type MemoryStorage struct {
-	mutex       sync.RWMutex
-	memories    map[int64]MemoryRecord
+	mu          sync.RWMutex
+	memories    map[RecordID]MemoryRecord
 	dataPath    string
 	maxMemories int
 }
 
-func NewStore(dataPath string, maxMemories int) (*MemoryStorage, error) {
+func StorageInit(dataPath string, maxMemories int) (*MemoryStorage, error) {
 	if err := os.MkdirAll(dataPath, 0755); err != nil {
 		return nil, err
 	}
 
 	store := &MemoryStorage{
-		memories:    make(map[int64]MemoryRecord),
+		memories:    make(map[RecordID]MemoryRecord),
 		dataPath:    dataPath,
 		maxMemories: maxMemories,
 	}
@@ -58,25 +60,38 @@ func (s *MemoryStorage) load() error {
 		return err
 	}
 
-	if err := json.Unmarshal(data, &s.memories); err != nil {
+	records := make([]MemoryRecord, 0, s.maxMemories)
+	if err := json.Unmarshal(data, &records); err != nil {
 		return err
+	}
+
+	for _, v := range records {
+		s.memories[v.ID] = v
 	}
 
 	return nil
 }
 
 func (s *MemoryStorage) save() error {
-	filePath := filepath.Join(s.dataPath, "memories.json")
-	data, err := json.MarshalIndent(s.memories, "", "  ")
+	records := make([]MemoryRecord, len(s.memories))
+	i := 0
+	for _, v := range s.memories {
+		records[i] = v
+		i++
+	}
+
+	data, err := json.MarshalIndent(records, "", "  ")
 	if err != nil {
 		return err
 	}
+
+	filePath := filepath.Join(s.dataPath, "memories.json")
 	return os.WriteFile(filePath, data, 0644)
 }
 
-func (s *MemoryStorage) NewRecord(text string) (int64, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *MemoryStorage) NewRecord(text string) (RecordID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if len(s.memories) >= s.maxMemories {
 		return 0, errors.New("memory limit reached")
@@ -84,8 +99,8 @@ func (s *MemoryStorage) NewRecord(text string) (int64, error) {
 
 	now := time.Now()
 	now_str := now.Format(TIMESTAMP_FORMAT)
-	id := now.UnixNano()
-	_ = fmt.Sprintf("%X", id)
+	id := RecordID(now.UnixMilli())
+	_ = fmt.Sprintf("%016X", id)
 
 	record := MemoryRecord{
 		ID:         id,
@@ -104,8 +119,8 @@ func (s *MemoryStorage) NewRecord(text string) (int64, error) {
 }
 
 func (s *MemoryStorage) GetAllRecords() []MemoryRecord {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	list := make([]MemoryRecord, 0, len(s.memories))
 	for _, m := range s.memories {
@@ -114,9 +129,9 @@ func (s *MemoryStorage) GetAllRecords() []MemoryRecord {
 	return list
 }
 
-func (s *MemoryStorage) DeleteRecord(id int64) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *MemoryStorage) DeleteRecord(id RecordID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if _, ok := s.memories[id]; !ok {
 		return fmt.Errorf("memory record %d does not exist", id)
@@ -131,9 +146,9 @@ func (s *MemoryStorage) DeleteRecord(id int64) error {
 	return nil
 }
 
-func (s *MemoryStorage) UpdateRecord(id int64, text string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *MemoryStorage) UpdateRecord(id RecordID, text string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	record, ok := s.memories[id]
 	if !ok {
