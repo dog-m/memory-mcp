@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -20,9 +22,18 @@ var (
 func main() {
 	flag.Parse()
 
+	if *maxMemories <= 0 || *maxMemories >= math.MaxUint16 {
+		log.Fatalf("Invalid record limit: %d", *maxMemories)
+	}
+
 	var err error
+	var dataDirResolved string
+	if dataDirResolved, err = filepath.Abs(*dataDir); err != nil {
+		log.Fatalf("Unable to resolve data directory: %v", err)
+	}
+
 	var storage *MemoryStorage
-	storage, err = StorageInit(*dataDir, *maxMemories)
+	storage, err = StorageInit(dataDirResolved, *maxMemories)
 	if err != nil {
 		log.Fatalf("Failed to initialize memory store: %v", err)
 	}
@@ -85,7 +96,7 @@ func main() {
 	url := fmt.Sprintf("%s:%d", *host, *port)
 
 	log.Printf("Max memories: %d", *maxMemories)
-	log.Printf("Data directory: %s", *dataDir)
+	log.Printf("Data directory: %s", dataDirResolved)
 	log.Printf("Memory MCP Server listening on http://%s", url)
 
 	if err := http.ListenAndServe(url, handler); err != nil {
