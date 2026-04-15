@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +18,7 @@ type AddMemoryParams struct {
 }
 
 const WRITE_ATTEMPTS = 3
+const ENTRY_TEXT_MAX_LENGTH = 750
 
 func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandlerFor[*AddMemoryParams, any] {
 	return func(
@@ -29,33 +30,40 @@ func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandler
 		any,
 		error,
 	) {
+		if text_size := len(params.Info); text_size > ENTRY_TEXT_MAX_LENGTH {
+			return nil, nil, fmt.Errorf(
+				"Memory entry too long (%d > %d). Keep things concise. Use multiple entries only if absolutely necessary.",
+				text_size,
+				ENTRY_TEXT_MAX_LENGTH,
+			)
+		}
+
 		if len(storage.memories) >= storage.maxMemories {
 			return nil, nil, fmt.Errorf(
-				"Memory limit reached: %d/%d (100%% full).\nTry using `%s` to remove stale memories or `%s` to update outdated ones.",
+				"Memory limit reached: %d/%d (full).\nTry using `%s` to remove stale memories or `%s` to update outdated ones.",
 				storage.maxMemories,
 				storage.maxMemories,
 				prompts.Remove.Name,
 				prompts.Update.Name,
 			)
 		} else {
-			// retry logic with jitter
+			// retry logic with random jitter
 			var err error
 			var rec *MemoryRecord
-			for i := range WRITE_ATTEMPTS {
+			for range WRITE_ATTEMPTS {
 				if rec, err = storage.AddRecord(params.Info); err == nil {
 					break
 				}
 
-				time.Sleep(time.Duration(100*(i+1)) * time.Millisecond)
+				time.Sleep(time.Duration(rand.Int63n(100)+1) * time.Millisecond)
 			}
-
 			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to remember after retries: %w", err)
+				return nil, nil, fmt.Errorf("Failed to add a new memory entry: %v", err)
 			}
 
 			return &mcp.CallToolResult{
 				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Memory recorded with ID: '%s'", rec.ID)},
+					&mcp.TextContent{Text: fmt.Sprintf("Memory recorded successfully (ID: '%s').", rec.ID)},
 				},
 			}, nil, nil
 		}
@@ -78,17 +86,15 @@ func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*EmptyPar
 		error,
 	) {
 		memories := storage.GetAllRecords()
-
 		// keeping things organized
-		sort.Slice(memories, func(i, j int) bool {
-			return memories[i].LastUpdate < memories[j].LastUpdate
+		slices.SortStableFunc(memories, func(a, b *MemoryRecord) int {
+			return strings.Compare(a.LastUpdate, b.LastUpdate)
 		})
 
-		jsonData, err := json.MarshalIndent(memories, "", "  ")
+		jsonData, err := json.MarshalIndent(memories, "", "\t")
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to marshal memories: %w", err)
+			return nil, nil, fmt.Errorf("Failed to serialize memories: %v", err)
 		}
-
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: string(jsonData)},
@@ -112,14 +118,12 @@ func GetRemoveMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*RemoveMe
 		any,
 		error,
 	) {
-		err := storage.DeleteRecord(params.MemID)
-		if err != nil {
+		if err := storage.DeleteRecord(params.MemID); err != nil {
 			return nil, nil, err
 		}
-
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Memory '%s' forgotten", params.MemID)},
+				&mcp.TextContent{Text: fmt.Sprintf("Memory '%s' forgotten.", params.MemID)},
 			},
 		}, nil, nil
 	}
@@ -141,14 +145,12 @@ func GetUpdateMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*UpdateMe
 		any,
 		error,
 	) {
-		err := storage.UpdateRecord(params.MemID, params.NewInfo)
-		if err != nil {
+		if err := storage.UpdateRecord(params.MemID, params.NewInfo); err != nil {
 			return nil, nil, err
 		}
-
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Memory '%s' updated", params.MemID)},
+				&mcp.TextContent{Text: fmt.Sprintf("Memory '%s' updated successfully.", params.MemID)},
 			},
 		}, nil, nil
 	}
@@ -173,14 +175,15 @@ func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mc
 		*ChatSessionStartupResponse,
 		error,
 	) {
-		// order
 		mem_count := len(storage.memories)
+
+		// order
 		memories_sorted := make([]*MemoryRecord, 0, mem_count)
-		for _, record := range storage.memories {
-			memories_sorted = append(memories_sorted, record)
+		for _, rec := range storage.memories {
+			memories_sorted = append(memories_sorted, rec)
 		}
 		slices.SortStableFunc(memories_sorted, func(a, b *MemoryRecord) int {
-			return strings.Compare(b.LastUpdate, a.LastUpdate)
+			return strings.Compare(a.LastUpdate, b.LastUpdate)
 		})
 
 		// truncate
@@ -200,6 +203,7 @@ func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mc
 		result.EditSummary.Count = len(memories_sorted)
 		result.EditSummary.Details = memories_sorted
 
+		// TODO: unsure if custom serialization/formatting would make things better or not
 		return nil, result, nil
 	}
 }

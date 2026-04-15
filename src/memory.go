@@ -142,7 +142,7 @@ func (storage *MemoryStorage) AddRecord(text string) (*MemoryRecord, error) {
 	}
 
 	if err := saveMemoryRecord(record, storage.dataPath); err != nil {
-		return nil, fmt.Errorf("failed to save memory: %w", err)
+		return nil, err
 	}
 
 	// register it only after we were able to store it
