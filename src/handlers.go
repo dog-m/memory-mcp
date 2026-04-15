@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,49 +13,53 @@ import (
 )
 
 // tool params
-type RememberParams struct {
+type AddMemoryParams struct {
 	Info string `json:"info" jsonschema:"A short, dense, and precise description of the information to remember."`
 }
 
 const WRITE_ATTEMPTS = 3
 
-func GetRememberMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*RememberParams, any] {
+func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandlerFor[*AddMemoryParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
-		params *RememberParams,
+		params *AddMemoryParams,
 	) (
 		*mcp.CallToolResult,
 		any,
 		error,
 	) {
-		var result string
 		if len(storage.memories) >= storage.maxMemories {
-			result = fmt.Sprintf("Memory limit reached: %d/%d", storage.maxMemories, storage.maxMemories)
+			return nil, nil, fmt.Errorf(
+				"Memory limit reached: %d/%d (100%% full).\nTry using `%s` to remove stale memories or `%s` to update outdated ones.",
+				storage.maxMemories,
+				storage.maxMemories,
+				prompts.Remove.Name,
+				prompts.Update.Name,
+			)
 		} else {
 			// retry logic with jitter
-			var id RecordID
 			var err error
+			var rec *MemoryRecord
 			for i := range WRITE_ATTEMPTS {
-				if id, err = storage.NewRecord(params.Info); err == nil {
+				if rec, err = storage.AddRecord(params.Info); err == nil {
 					break
 				}
 
 				time.Sleep(time.Duration(100*(i+1)) * time.Millisecond)
 			}
 
-			if err == nil {
-				result = fmt.Sprintf("Memory recorded with ID: '%s'", id)
-			} else {
+			if err != nil {
 				return nil, nil, fmt.Errorf("Failed to remember after retries: %w", err)
 			}
+
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Memory recorded with ID: '%s'", rec.ID)},
+				},
+			}, nil, nil
 		}
 
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: result},
-			},
-		}, nil, nil
 	}
 }
 
@@ -74,6 +79,11 @@ func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*EmptyPar
 	) {
 		memories := storage.GetAllRecords()
 
+		// keeping things organized
+		sort.Slice(memories, func(i, j int) bool {
+			return memories[i].LastUpdate < memories[j].LastUpdate
+		})
+
 		jsonData, err := json.MarshalIndent(memories, "", "  ")
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to marshal memories: %w", err)
@@ -88,15 +98,15 @@ func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*EmptyPar
 }
 
 // tool params
-type ForgetParams struct {
+type RemoveMemoryParams struct {
 	MemID RecordID `json:"mem_id" jsonschema:"The ID of the memory record to delete."`
 }
 
-func GetForgetMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*ForgetParams, any] {
+func GetRemoveMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*RemoveMemoryParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
-		params *ForgetParams,
+		params *RemoveMemoryParams,
 	) (
 		*mcp.CallToolResult,
 		any,
@@ -167,7 +177,7 @@ func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mc
 		mem_count := len(storage.memories)
 		memories_sorted := make([]*MemoryRecord, 0, mem_count)
 		for _, record := range storage.memories {
-			memories_sorted = append(memories_sorted, &record)
+			memories_sorted = append(memories_sorted, record)
 		}
 		slices.SortStableFunc(memories_sorted, func(a, b *MemoryRecord) int {
 			return strings.Compare(b.LastUpdate, a.LastUpdate)

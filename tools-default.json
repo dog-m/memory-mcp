@@ -1,7 +1,7 @@
 {
     "startup": {
         "name":        "get_session_context",
-        "description": "The foundational tool for establishing continuity. To ensure every interaction is personalized and context-aware, this tool should be the first step in any conversation, including greetings. It provides the immediate baseline of the user's current state and recent history."
+        "description": "CRITICAL: The foundational tool for establishing continuity. To ensure every interaction is personalized and context-aware, this tool should be the **ABSOLUTE FIRST STEP** in any conversation, including greetings. It provides the immediate baseline of the user's current state and recent history."
     },
     "remember": {
         "name":        "record_personal_detail",
