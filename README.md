@@ -5,8 +5,8 @@ A simple and portable, single-user MCP server for managing long-term memories.
 ## Features
 
 - **Session Startup**: Get current time, memory utilization, and a summary of recent edits.
-- **Add Memory**: Create new memory records with automatic timestamps.
-- **List Memories**: Retrieve all stored memories in JSON format.
+- **Add Memory**: Create new memory records with automatic timestamps (max 750 characters per entry).
+- **List Memories**: Retrieve all stored memories in JSON format. Supports optional pattern-based filtering using `include` and `exclude` parameters (supports wildcards and alternatives, GLOB-like).
 - **Remove Memory**: Delete specific memory records by ID.
 - **Update Memory**: Update the content of an existing memory record.
 - **Configurable Limit**: Set a maximum number of memories to prevent storage bloat.
