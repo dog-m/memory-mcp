@@ -72,34 +72,48 @@ func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandler
 }
 
 // tool params
-type EmptyParams struct {
+type ListMemoriesParams struct {
+	Include *string `json:"include,omitempty" jsonschema:"A pattern-based filter to find specific memories. Supports wildcards (*) and alternatives in curly braces {option1,option2}. Use this to narrow down results by structure or keywords. Example: '{I,he,she} * home at ??:??'"`
+	Exclude *string `json:"exclude,omitempty" jsonschema:"Use this to filter out noise. If you are looking for food but want to avoid mentions of 'delivery', set this to 'delivery'."`
 }
 
-func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*EmptyParams, any] {
+func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*ListMemoriesParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
-		_ *EmptyParams,
+		params *ListMemoriesParams,
 	) (
 		*mcp.CallToolResult,
 		any,
 		error,
 	) {
-		memories := storage.GetAllRecords()
+		// build filters
+		var allowMatcher, denyMatcher SearchMatcher
+		allowMatcher, denyMatcher, err := GetSearchMatchers(params.Include, params.Exclude)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// retrieve
+		memories := storage.GetAllRecords(func(rec *MemoryRecord) bool {
+			return allowMatcher(rec.Text) && !denyMatcher(rec.Text)
+		})
+
 		// keeping things organized
 		slices.SortStableFunc(memories, func(a, b *MemoryRecord) int {
 			return strings.Compare(a.LastUpdate, b.LastUpdate)
 		})
 
-		jsonData, err := json.MarshalIndent(memories, "", "\t")
-		if err != nil {
+		// print things neatly (unsure if this helps or not)
+		if jsonData, err := json.MarshalIndent(memories, "", "\t"); err != nil {
 			return nil, nil, fmt.Errorf("Failed to serialize memories: %v", err)
+		} else {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: string(jsonData)},
+				},
+			}, nil, nil
 		}
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(jsonData)},
-			},
-		}, nil, nil
 	}
 }
 
@@ -163,6 +177,10 @@ type ChatSessionStartupResponse struct {
 		Count   int             `json:"count"`
 		Details []*MemoryRecord `json:"details"`
 	} `json:"edit_summary"`
+}
+
+// tool params
+type EmptyParams struct {
 }
 
 func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mcp.ToolHandlerFor[*EmptyParams, *ChatSessionStartupResponse] {

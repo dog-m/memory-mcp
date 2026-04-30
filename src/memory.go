@@ -17,10 +17,9 @@ import (
 type RecordID string
 
 const TIMESTAMP_FORMAT = "2006-01-02 15:04:05 MST"
-const RECORD_ID_NONE = RecordID("<invalid-id>")
 const RECORD_FILENAME_FORMAT = "mem-%s.json"
 
-var RECORD_FILENAME_MATCHER, _ = regexp.Compile("mem-[0-9A-Za-z_-]+.json")
+var RECORD_FILENAME_MATCHER = regexp.MustCompile("mem-[0-9A-Za-z_-]+.json")
 
 type MemoryRecord struct {
 	ID         RecordID `json:"id"`
@@ -151,13 +150,17 @@ func (storage *MemoryStorage) AddRecord(text string) (*MemoryRecord, error) {
 	return record, nil
 }
 
-func (storage *MemoryStorage) GetAllRecords() []*MemoryRecord {
+type RecordFilter = func(*MemoryRecord) bool
+
+func (storage *MemoryStorage) GetAllRecords(filter RecordFilter) []*MemoryRecord {
 	storage.mu.RLock()
 	defer storage.mu.RUnlock()
 
 	list := make([]*MemoryRecord, 0, len(storage.memories))
 	for _, rec := range storage.memories {
-		list = append(list, rec)
+		if filter(rec) {
+			list = append(list, rec)
+		}
 	}
 	return list
 }
