@@ -10,7 +10,7 @@ import (
 
 type SearchMatcher = func(string) bool
 
-func getTextMatcher(pattern *string) (SearchMatcher, error) {
+func buildTextMatcher(pattern *string) (SearchMatcher, error) {
 	// note: any number of consecutive "*", ie. "**", are treated like a single one, thus no filtering required
 	r_patt := globre.RegexFromGlob(
 		*pattern,
@@ -22,7 +22,7 @@ func getTextMatcher(pattern *string) (SearchMatcher, error) {
 	// make patterns suitable for "whole-text" operation by cutting-off "^" and "$"
 	r_patt = r_patt[1 : len(r_patt)-1]
 
-	// build
+	// assemble
 	if r, err := regexp.Compile(r_patt); err != nil {
 		return nil, err
 	} else {
@@ -56,28 +56,32 @@ var MATCH_NONE SearchMatcher = func(string) bool {
 	return false
 }
 
-func GetSearchMatchers(include *string, exclude *string) (SearchMatcher, SearchMatcher, error) {
-	var allow, deny SearchMatcher
+type SearchFilterPair struct {
+	allowFilter SearchMatcher
+	denyFilter  SearchMatcher
+}
 
-	if include == nil {
-		allow = MATCH_ALL
-	} else {
-		if matcher, err := getTextMatcher(include); err != nil {
-			return nil, nil, fmt.Errorf("Invalid INCLUDE pattern: %v", formatParserError(err))
+func GetSearchMatchers(include *string, exclude *string) (*SearchFilterPair, error) {
+	var res = &SearchFilterPair{
+		allowFilter: MATCH_ALL,
+		denyFilter:  MATCH_NONE,
+	}
+
+	if include != nil && *include != "" {
+		if matcher, err := buildTextMatcher(include); err != nil {
+			return nil, fmt.Errorf("Invalid INCLUDE pattern: %v", formatParserError(err))
 		} else {
-			allow = matcher
+			res.allowFilter = matcher
 		}
 	}
 
-	if exclude == nil {
-		deny = MATCH_NONE
-	} else {
-		if matcher, err := getTextMatcher(exclude); err != nil {
-			return nil, nil, fmt.Errorf("Invalid EXCLUDE pattern: %v", formatParserError(err))
+	if exclude != nil && *exclude != "" {
+		if matcher, err := buildTextMatcher(exclude); err != nil {
+			return nil, fmt.Errorf("Invalid EXCLUDE pattern: %v", formatParserError(err))
 		} else {
-			deny = matcher
+			res.denyFilter = matcher
 		}
 	}
 
-	return allow, deny, nil
+	return res, nil
 }

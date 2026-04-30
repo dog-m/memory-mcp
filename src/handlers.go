@@ -88,15 +88,14 @@ func GetListMemoriesHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*ListMemo
 		error,
 	) {
 		// build filters
-		var allowMatcher, denyMatcher SearchMatcher
-		allowMatcher, denyMatcher, err := GetSearchMatchers(params.Include, params.Exclude)
+		filters, err := GetSearchMatchers(params.Include, params.Exclude)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		// retrieve
 		memories := storage.GetAllRecords(func(rec *MemoryRecord) bool {
-			return allowMatcher(rec.Text) && !denyMatcher(rec.Text)
+			return filters.allowFilter(rec.Text) && !filters.denyFilter(rec.Text)
 		})
 
 		// keeping things organized
