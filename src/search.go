@@ -24,7 +24,7 @@ func buildTextMatcher(pattern *string) (SearchMatcher, error) {
 
 	// assemble
 	if r, err := regexp.Compile(r_patt); err != nil {
-		return nil, err
+		return nil, formatParserError(err)
 	} else {
 		return r.MatchString, nil
 	}
@@ -37,12 +37,16 @@ func formatParserError(err error) error {
 		switch e.Code {
 		case syntax.ErrInternalError:
 			return fmt.Errorf("unknown internal parser error")
+
 		case syntax.ErrInvalidPerlOp:
 			return fmt.Errorf("invalid or unsupported syntax")
+
 		case syntax.ErrMissingBracket, syntax.ErrMissingParen:
 			return fmt.Errorf("missing closing bracket")
+
 		case syntax.ErrUnexpectedParen:
 			return fmt.Errorf("unexpected open bracket")
+
 		default:
 			return fmt.Errorf("%v", e.Code)
 		}
@@ -69,7 +73,7 @@ func GetSearchMatchers(include *string, exclude *string) (*SearchFilterPair, err
 
 	if include != nil && *include != "" {
 		if matcher, err := buildTextMatcher(include); err != nil {
-			return nil, fmt.Errorf("Invalid INCLUDE pattern: %v", formatParserError(err))
+			return nil, fmt.Errorf("Invalid INCLUDE pattern: %v", err)
 		} else {
 			res.allowFilter = matcher
 		}
@@ -77,7 +81,7 @@ func GetSearchMatchers(include *string, exclude *string) (*SearchFilterPair, err
 
 	if exclude != nil && *exclude != "" {
 		if matcher, err := buildTextMatcher(exclude); err != nil {
-			return nil, fmt.Errorf("Invalid EXCLUDE pattern: %v", formatParserError(err))
+			return nil, fmt.Errorf("Invalid EXCLUDE pattern: %v", err)
 		} else {
 			res.denyFilter = matcher
 		}
