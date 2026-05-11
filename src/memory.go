@@ -28,8 +28,13 @@ type MemoryRecord struct {
 	Text       string   `json:"text"`
 }
 
-type Config struct {
-	MaxMemories int `json:"max_memories"`
+func (m *MemoryRecord) Clone() *MemoryRecord {
+	return &MemoryRecord{
+		ID:         m.ID,
+		CreatedAt:  m.CreatedAt,
+		LastUpdate: m.LastUpdate,
+		Text:       m.Text,
+	}
 }
 
 type MemoryStorage struct {

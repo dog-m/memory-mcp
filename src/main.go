@@ -14,12 +14,13 @@ import (
 const PROMPTS_DEFAULT = "<builtin>"
 
 var (
-	host            = flag.String("host", "127.0.0.1", "Host address to listen on")
-	port            = flag.Uint("port", 8000, "Port number to listen on")
-	dataDir         = flag.String("data", "user-data", "Path to the directory where memories will be stored")
-	maxMemories     = flag.Uint("max-memories", 50, "Maximum allowed number of memories to store")
-	toolDefinitions = flag.String("prompts", PROMPTS_DEFAULT, "Path to a file containing tool names and matching descriptions")
-	maxRecentEdits  = flag.Uint("max-recent-edits", 5, "Number of recent edits shown by the session info tool")
+	host             = flag.String("host", "127.0.0.1", "Host address to listen on")
+	port             = flag.Uint("port", 8000, "Port number to listen on")
+	dataDir          = flag.String("data", "user-data", "Path to the directory where memories will be stored")
+	maxMemories      = flag.Uint("max-memories", 50, "Maximum allowed number of memories to store")
+	toolDefinitions  = flag.String("prompts", PROMPTS_DEFAULT, "Path to a file containing tool names and matching descriptions")
+	maxRecentEdits   = flag.Uint("max-recent-edits", 5, "Number of recent edits shown by the session info tool")
+	maxSummaryLength = flag.Uint("max-summary-length", 75, "Max text length of an entry in a session summary result")
 )
 
 func main() {
@@ -63,7 +64,7 @@ func main() {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        tools.Startup.Name,
 		Description: tools.Startup.Description,
-	}, GetChatSessionStartupHandler(storage, int(*maxRecentEdits)))
+	}, GetChatSessionStartupHandler(storage, int(*maxRecentEdits), int(*maxSummaryLength)))
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        tools.Add.Name,

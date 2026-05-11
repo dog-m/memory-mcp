@@ -182,7 +182,7 @@ type ChatSessionStartupResponse struct {
 type EmptyParams struct {
 }
 
-func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mcp.ToolHandlerFor[*EmptyParams, *ChatSessionStartupResponse] {
+func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int, maxSummaryLen int) mcp.ToolHandlerFor[*EmptyParams, *ChatSessionStartupResponse] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
@@ -194,7 +194,7 @@ func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mc
 	) {
 		mem_count := len(storage.memories)
 
-		// order
+		// retrieve and order
 		memories_sorted := make([]*MemoryRecord, 0, mem_count)
 		for _, rec := range storage.memories {
 			memories_sorted = append(memories_sorted, rec)
@@ -203,9 +203,16 @@ func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int) mc
 			return strings.Compare(a.LastUpdate, b.LastUpdate)
 		})
 
-		// truncate
+		// trim and compact long entries without making changes to the stored values
 		if mem_count > maxRecentEdits {
 			memories_sorted = memories_sorted[:maxRecentEdits]
+		}
+		for i, rec := range memories_sorted {
+			if len(rec.Text) > maxSummaryLen {
+				rec = rec.Clone()
+				rec.Text = rec.Text[:maxSummaryLen] + "..."
+				memories_sorted[i] = rec
+			}
 		}
 
 		// assemble response
