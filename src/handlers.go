@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -20,6 +21,17 @@ type AddMemoryParams struct {
 const WRITE_ATTEMPTS = 3
 const ENTRY_TEXT_MAX_LENGTH = 750
 
+func checkEntryTextSize(text string) error {
+	if size := utf8.RuneCountInString(text); size > ENTRY_TEXT_MAX_LENGTH {
+		return fmt.Errorf(
+			"Memory entry too long (%d > %d). Keep things concise. Use multiple entries only if absolutely necessary.",
+			size,
+			ENTRY_TEXT_MAX_LENGTH,
+		)
+	}
+	return nil
+}
+
 func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandlerFor[*AddMemoryParams, any] {
 	return func(
 		ctx context.Context,
@@ -30,12 +42,8 @@ func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandler
 		any,
 		error,
 	) {
-		if text_size := len(params.Info); text_size > ENTRY_TEXT_MAX_LENGTH {
-			return nil, nil, fmt.Errorf(
-				"Memory entry too long (%d > %d). Keep things concise. Use multiple entries only if absolutely necessary.",
-				text_size,
-				ENTRY_TEXT_MAX_LENGTH,
-			)
+		if err := checkEntryTextSize(params.Info); err != nil {
+			return nil, nil, err
 		}
 
 		if len(storage.memories) >= storage.maxMemories {
@@ -158,6 +166,10 @@ func GetUpdateMemoryHandler(storage *MemoryStorage) mcp.ToolHandlerFor[*UpdateMe
 		any,
 		error,
 	) {
+		if err := checkEntryTextSize(params.NewInfo); err != nil {
+			return nil, nil, err
+		}
+
 		if err := storage.UpdateRecord(params.MemID, params.NewInfo); err != nil {
 			return nil, nil, err
 		}
@@ -208,7 +220,7 @@ func GetChatSessionStartupHandler(storage *MemoryStorage, maxRecentEdits int, ma
 			memories_sorted = memories_sorted[:maxRecentEdits]
 		}
 		for i, rec := range memories_sorted {
-			if len(rec.Text) > maxSummaryLen {
+			if utf8.RuneCountInString(rec.Text) > maxSummaryLen {
 				rec = rec.Clone()
 				rec.Text = rec.Text[:maxSummaryLen] + "..."
 				memories_sorted[i] = rec
