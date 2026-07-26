@@ -3,34 +3,35 @@ package main
 import (
 	"bytes"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+
+	"go.yaml.in/yaml/v4"
 )
 
-type ToolSettings struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+type ToolDefinition struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
 }
 
-type Tools struct {
-	Startup ToolSettings `json:"startup"`
-	Add     ToolSettings `json:"remember"`
-	Remove  ToolSettings `json:"forget"`
-	List    ToolSettings `json:"list"`
-	Update  ToolSettings `json:"update"`
+type ToolDefinitions struct {
+	Startup ToolDefinition `yaml:"startup"`
+	Add     ToolDefinition `yaml:"remember"`
+	Remove  ToolDefinition `yaml:"forget"`
+	List    ToolDefinition `yaml:"list"`
+	Update  ToolDefinition `yaml:"update"`
 }
 
-func loadTools(reader io.Reader) (*Tools, error) {
-	res := &Tools{}
-	if err := json.NewDecoder(reader).Decode(res); err != nil {
+func loadTools(reader io.Reader) (*ToolDefinitions, error) {
+	res := &ToolDefinitions{}
+	if err := yaml.NewDecoder(reader).Decode(res); err != nil {
 		return nil, err
 	}
 	return res, nil
 }
 
-func LoadToolsFromFile(filename string) (*Tools, error) {
+func LoadToolsFromFile(filename string) (*ToolDefinitions, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -43,8 +44,8 @@ func LoadToolsFromFile(filename string) (*Tools, error) {
 //go:embed assets
 var embeddedAssets embed.FS
 
-func GetToolsDefault() *Tools {
-	fileData, err := embeddedAssets.ReadFile("assets/tools-default.json")
+func GetToolsDefault() *ToolDefinitions {
+	fileData, err := embeddedAssets.ReadFile("assets/tools-default.yml")
 	if err != nil {
 		panic(fmt.Errorf("Unable to read default tool definitions: %v", err))
 	}

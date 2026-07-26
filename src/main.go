@@ -50,7 +50,7 @@ func main() {
 	server := mcp.NewServer(&mcp.Implementation{Name: "memory-mcp", Version: "v1.0.0"}, nil)
 	server.AddReceivingMiddleware(createLoggingMiddleware())
 
-	var tools *Tools
+	var tools *ToolDefinitions
 	log.Printf("Tool definition source: %s", *toolDefinitions)
 	if *toolDefinitions != PROMPTS_DEFAULT {
 		tools, err = LoadToolsFromFile(*toolDefinitions)

@@ -32,7 +32,7 @@ func checkEntryTextSize(text string) error {
 	return nil
 }
 
-func GetAddMemoryHandler(storage *MemoryStorage, prompts *Tools) mcp.ToolHandlerFor[*AddMemoryParams, any] {
+func GetAddMemoryHandler(storage *MemoryStorage, prompts *ToolDefinitions) mcp.ToolHandlerFor[*AddMemoryParams, any] {
 	return func(
 		ctx context.Context,
 		req *mcp.CallToolRequest,
