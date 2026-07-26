@@ -53,7 +53,7 @@ func main() {
 	var tools *Tools
 	log.Printf("Tool definition source: %s", *toolDefinitions)
 	if *toolDefinitions != PROMPTS_DEFAULT {
-		tools, err = LoadToolsFrom(*toolDefinitions)
+		tools, err = LoadToolsFromFile(*toolDefinitions)
 		if err != nil {
 			log.Fatalf("Failed to load tool definitions: %v", err)
 		}
