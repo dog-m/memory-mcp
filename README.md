@@ -27,7 +27,7 @@ go build -o build/memory-mcp.exe ./src
 Run the server via CLI:
 
 ```bash
-./build/memory-mcp.exe -data ./user-data -max-memories 25 -host 127.0.0.1 -port 1234 -prompts "./tools-default.json"
+./build/memory-mcp.exe -data ./user-data -max-memories 25 -host 127.0.0.1 -port 1234 -prompts "my-tool-definitions.json"
 ```
 
 ### Arguments
